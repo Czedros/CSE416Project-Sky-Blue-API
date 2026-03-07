@@ -1,0 +1,93 @@
+const Player = require("../models/player.model");
+const { fetchMockExternalPlayer } = require("../services/mockExternalPlayer");
+
+function mapPlayerRow(player) {
+  const primaryPosition = Array.isArray(player.position) ? player.position[0] : "";
+  const isPitcher = Boolean(player.isPitcher) || primaryPosition === "SP" || primaryPosition === "RP";
+
+  return {
+    id: player.playerId,
+    name: player.name,
+    position: primaryPosition,
+    team: player.team,
+    league: player.league || "",
+    avg: isPitcher ? player.stats?.ERA : player.stats?.BA,
+    hr: isPitcher ? player.stats?.W : player.stats?.HR,
+    rbi: isPitcher ? player.stats?.SV : player.stats?.RBI,
+    sb: isPitcher ? player.stats?.K : player.stats?.SB,
+    isPitcher,
+  };
+}
+
+function mapPlayerDetails(player, source) {
+  return {
+    playerId: player.playerId,
+    name: player.name,
+    team: player.team,
+    league: player.league || "",
+    position: player.position,
+    notes: player.notes || "",
+    stats: player.stats,
+    fetchedAt: new Date(player.fetchedAt).toISOString(),
+    source,
+  };
+}
+
+async function getPlayers(_req, res, next) {
+  try {
+    const players = await Player.find({ league: { $exists: true, $ne: "" } })
+      .sort({ name: 1 })
+      .lean();
+    return res.json(players.map(mapPlayerRow));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getPlayerById(req, res, next) {
+  try {
+    const { playerId } = req.params;
+    const cachedPlayer = await Player.findOne({ playerId }).lean();
+
+    if (cachedPlayer) {
+      return res.json(mapPlayerDetails(cachedPlayer, "cache"));
+    }
+
+    const externalPlayer = await fetchMockExternalPlayer(playerId);
+    const createdPlayer = await Player.create(externalPlayer);
+    return res.json(mapPlayerDetails(createdPlayer.toObject(), "external"));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function updatePlayerNotes(req, res, next) {
+  try {
+    const { playerId } = req.params;
+    const { notes } = req.body || {};
+
+    if (typeof notes !== "string") {
+      return res.status(400).json({ error: "notes must be a string" });
+    }
+
+    const updatedPlayer = await Player.findOneAndUpdate(
+      { playerId },
+      { $set: { notes } },
+      { new: true }
+    ).lean();
+
+    if (!updatedPlayer) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    return res.json({ playerId, notes: updatedPlayer.notes || "" });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  getPlayers,
+  getPlayerById,
+  updatePlayerNotes,
+};
