@@ -4,6 +4,7 @@ const env = require("./config/env");
 const { connectMongo } = require("./db/mongo");
 const { requireAppClientKey } = require("./middleware/auth");
 const playersRoutes = require("./routes/players-routes");
+const userRoutes = require("./routes/users-routes");
 const { seedPlayersCatalog } = require("./services/seedPlayersCatalog");
 
 const app = express();
@@ -21,6 +22,7 @@ const corsConfig = {
 app.use(cors(corsConfig));
 app.use(express.json());
 
+app.use("/api/users", userRoutes);
 app.use("/api/players", requireAppClientKey, playersRoutes);
 
 app.use((err, _req, res, _next) => {
