@@ -4,7 +4,7 @@ const env = require("./config/env");
 const { connectMongo } = require("./db/mongo");
 const { requireAppClientKey } = require("./middleware/auth");
 const playersRoutes = require("./routes/players-routes");
-const userRoutes = require("./routes/users-routes");
+const userRoutes = require("./routes/user-routes");
 const { seedPlayersCatalog } = require("./services/seedPlayersCatalog");
 
 const app = express();
