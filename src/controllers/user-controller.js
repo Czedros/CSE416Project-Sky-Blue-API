@@ -1,9 +1,25 @@
 const User = require("../models/user.model");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const env = require("../config/env");
 
 function generateApiKey() {
   return crypto.randomBytes(24).toString("hex");
+}
+
+// AI generated
+function createJwt(user) {
+  return jwt.sign(
+    {
+      userId: user._id.toString(),
+      username: user.username,
+    },
+    env.jwtSecret,
+    {
+      expiresIn: "24h",
+    }
+  );
 }
 
 async function registerUser(req, res, next) {
@@ -31,6 +47,7 @@ async function registerUser(req, res, next) {
     return res.status(201).json({
       username: user.username,
       apiKey: user.apiKey,
+      token: createJwt(user),
       createdAt: user.createdAt.toISOString(),
     });
   } catch (error) {
@@ -59,6 +76,7 @@ async function loginUser(req, res, next) {
     return res.json({
       username: user.username,
       apiKey: user.apiKey,
+      token: createJwt(user),
       createdAt: user.createdAt.toISOString(),
     });
   } catch (error) {
@@ -66,8 +84,24 @@ async function loginUser(req, res, next) {
   }
 }
 
+async function generateApiKeyForUser(req, res, next) {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    user.apiKey = generateApiKey();
+    await user.save();
+
+    return res.json({ apiKey: user.apiKey });
+  } catch (error) {
+    return next(error);
+  }
+}
 
 module.exports = {
   registerUser,
   loginUser,
+  generateApiKeyForUser,
 };
