@@ -1,11 +1,13 @@
 const seedPlayers = require("../../../src/data/seedPlayers");
 const Player = require("../../../src/models/player.model");
+const mlbCatalogSyncService = require("../../../src/services/mlbCatalogSyncService");
 const {
   getPlayers,
   getPlayerById,
   valuateSinglePlayer,
   valuateMultiplePlayers,
   valuateAllPlayers,
+  syncMlbCatalog,
 } = require("../../../src/controllers/players-controller");
 const { createMockReq, createMockRes } = require("../helpers/httpMocks");
 const originalFind = Player.find;
@@ -168,6 +170,60 @@ describe("controllers: players", () => {
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.payload.values)).toBe(true);
     expect(res.payload.values).toHaveLength(seedPlayers.length);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid MLB sync payloads", async () => {
+    const req = createMockReq({ body: { rosterType: "bad-type" } });
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await syncMlbCatalog(req, res, next);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.payload).toEqual({
+      error: "rosterType must be one of: active, 40Man, depthChart, fullSeason",
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-string CSV path options for MLB sync", async () => {
+    const req = createMockReq({ body: { lahmanBattingCsvPath: 123 } });
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await syncMlbCatalog(req, res, next);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.payload).toEqual({
+      error: "lahmanBattingCsvPath must be a string path",
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("runs MLB catalog sync and returns summary", async () => {
+    const syncSpy = vi.spyOn(mlbCatalogSyncService, "syncCatalogFromMlbApi").mockResolvedValue({
+      rosterType: "40Man",
+      seasonsSynced: [2025, 2024, 2023],
+      teamsSynced: 30,
+      playersSynced: 1200,
+      transactionsAnalyzed: 450,
+      replacedCatalog: false,
+      fetchedAt: "2026-05-07T18:00:00.000Z",
+    });
+
+    const req = createMockReq({
+      body: { rosterType: "40Man", seasonsBack: 3, lookbackDays: 30 },
+    });
+    const res = createMockRes();
+    const next = vi.fn();
+
+    await syncMlbCatalog(req, res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.payload.ok).toBe(true);
+    expect(res.payload.playersSynced).toBe(1200);
+    expect(syncSpy).toHaveBeenCalledWith({ rosterType: "40Man", seasonsBack: 3, lookbackDays: 30 });
     expect(next).not.toHaveBeenCalled();
   });
 });

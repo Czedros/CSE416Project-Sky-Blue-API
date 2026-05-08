@@ -2,6 +2,7 @@ const express = require("express");
 const seedPlayers = require("../../../src/data/seedPlayers");
 const Player = require("../../../src/models/player.model");
 const User = require("../../../src/models/user.model");
+const mlbCatalogSyncService = require("../../../src/services/mlbCatalogSyncService");
 const { requireAppClientKey } = require("../../../src/middleware/auth");
 const playersRoutes = require("../../../src/routes/players-routes");
 const playerRoutes = require("../../../src/routes/player-routes");
@@ -260,6 +261,49 @@ describe("integration: players routes compatibility", () => {
     expect(all.status).toBe(200);
     expect(Array.isArray(all.payload.values)).toBe(true);
     expect(all.payload.values).toHaveLength(seedPlayers.length);
+  });
+
+  it("supports POST /api/players/sync/mlb route contract", async () => {
+    vi.spyOn(mlbCatalogSyncService, "syncCatalogFromMlbApi").mockResolvedValue({
+      rosterType: "40Man",
+      seasonsSynced: [2025, 2024, 2023],
+      teamsSynced: 30,
+      playersSynced: 1200,
+      transactionsAnalyzed: 450,
+      replacedCatalog: false,
+      fetchedAt: "2026-05-07T18:00:00.000Z",
+    });
+
+    const app = createApp();
+    const response = await makeRequest(app, {
+      method: "POST",
+      path: "/api/players/sync/mlb",
+      body: {
+        rosterType: "40Man",
+        seasonsBack: 3,
+        lookbackDays: 30,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.payload.ok).toBe(true);
+    expect(response.payload.playersSynced).toBe(1200);
+  });
+
+  it("returns 400 for invalid sync payload on POST /api/players/sync/mlb", async () => {
+    const app = createApp();
+    const response = await makeRequest(app, {
+      method: "POST",
+      path: "/api/players/sync/mlb",
+      body: {
+        rosterType: "unknown",
+      },
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.payload).toEqual({
+      error: "rosterType must be one of: active, 40Man, depthChart, fullSeason",
+    });
   });
 
   it("returns equivalent values for legacy GET valuation and new POST valuation", async () => {

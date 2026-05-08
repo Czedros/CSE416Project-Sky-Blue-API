@@ -9,6 +9,7 @@ const teamsRoutes = require("./routes/teams-routes");
 const userRoutes = require("./routes/user-routes");
 const { seedPlayersCatalog } = require("./services/seedPlayersCatalog");
 const { seedTeamsCatalog } = require("./services/seedTeamsCatalog");
+const { syncCatalogFromMlbApi } = require("./services/mlbCatalogSyncService");
 
 const app = express();
 const allowedOrigins = env.corsOrigin
@@ -39,6 +40,29 @@ async function start() {
   await connectMongo(env.mongodbUri);
   await seedTeamsCatalog();
   await seedPlayersCatalog();
+
+  if (env.syncMlbOnStartup) {
+    try {
+      const summary = await syncCatalogFromMlbApi({
+        rosterType: env.syncMlbRosterType,
+        seasonsBack: env.syncMlbSeasonsBack,
+        lookbackDays: env.syncMlbLookbackDays,
+        concurrency: env.syncMlbConcurrency,
+        replaceCatalog: env.syncMlbReplaceCatalog,
+        lahmanBattingCsvPath: env.lahmanBattingCsvPath,
+        lahmanPitchingCsvPath: env.lahmanPitchingCsvPath,
+        lahmanPeopleCsvPath: env.lahmanPeopleCsvPath,
+        chadwickRegisterCsvPath: env.chadwickRegisterCsvPath,
+        fangraphsDepthCsvPath: env.fangraphsDepthCsvPath,
+      });
+      console.log(
+        `MLB sync complete: ${summary.playersSynced} players, ${summary.teamsSynced} teams (${summary.rosterType})`,
+      );
+    } catch (error) {
+      console.error("MLB sync failed, continuing with seeded catalog:", error.message);
+    }
+  }
+
   app.listen(env.port, () => {
     console.log(`DraftKit API listening on port ${env.port}`);
   });

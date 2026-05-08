@@ -2,6 +2,17 @@ const axios = require("axios");
 
 const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
 
+function mapRosterEntry(entry) {
+  return {
+    playerId: entry.person?.id,
+    name: entry.person?.fullName,
+    jerseyNumber: entry.jerseyNumber,
+    position: entry.position?.abbreviation || "",
+    status: entry.status?.description || "Active",
+    statusCode: entry.status?.code || "",
+  };
+}
+
 async function fetchAllTeams() {
   const { data } = await axios.get(`${MLB_API_BASE}/teams`, {
     params: { sportId: 1 },
@@ -16,17 +27,16 @@ async function fetchAllTeams() {
   }));
 }
 
-async function fetchActiveRoster(mlbTeamId) {
+async function fetchTeamRoster(mlbTeamId, rosterType = "active") {
   const { data } = await axios.get(`${MLB_API_BASE}/teams/${mlbTeamId}/roster`, {
-    params: { rosterType: "active" },
+    params: { rosterType },
   });
-  return (data.roster || []).map((entry) => ({
-    playerId: entry.person.id,
-    name: entry.person.fullName,
-    jerseyNumber: entry.jerseyNumber,
-    position: entry.position.abbreviation,
-    status: entry.status?.description || "Active",
-  }));
+
+  return (data.roster || []).map(mapRosterEntry);
+}
+
+async function fetchActiveRoster(mlbTeamId) {
+  return fetchTeamRoster(mlbTeamId, "active");
 }
 
 async function fetchPlayer(mlbPlayerId) {
@@ -68,7 +78,11 @@ async function fetchTransactions(date) {
   const { data } = await axios.get(`${MLB_API_BASE}/transactions`, {
     params: { date: dateStr },
   });
-  return (data.transactions || []).map((tx) => ({
+  return mapTransactions(data.transactions || []);
+}
+
+function mapTransactions(transactions) {
+  return (transactions || []).map((tx) => ({
     id: tx.id,
     date: tx.date,
     effectiveDate: tx.effectiveDate,
@@ -81,10 +95,23 @@ async function fetchTransactions(date) {
   }));
 }
 
+async function fetchTransactionsRange(startDate, endDate) {
+  const startDateStr = typeof startDate === "string" ? startDate : startDate.toISOString().slice(0, 10);
+  const endDateStr = typeof endDate === "string" ? endDate : endDate.toISOString().slice(0, 10);
+
+  const { data } = await axios.get(`${MLB_API_BASE}/transactions`, {
+    params: { startDate: startDateStr, endDate: endDateStr, sportId: 1 },
+  });
+
+  return mapTransactions(data.transactions || []);
+}
+
 module.exports = {
   fetchAllTeams,
+  fetchTeamRoster,
   fetchActiveRoster,
   fetchPlayer,
   fetchPlayerSeasonStats,
   fetchTransactions,
+  fetchTransactionsRange,
 };

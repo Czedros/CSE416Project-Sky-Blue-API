@@ -4,6 +4,7 @@ const {
   SUPPORTED_SCORING_SYSTEMS,
   ROTO_ALLOWED_CATEGORIES,
 } = require("../services/valuationService");
+const mlbCatalogSyncService = require("../services/mlbCatalogSyncService");
 
 function mapPlayerRow(player) {
   const primaryPosition = Array.isArray(player.position) ? player.position[0] : "";
@@ -210,6 +211,56 @@ function validateCreatePlayerBody(body) {
       if (!row || !Number.isInteger(row.season) || !row.stats || typeof row.stats !== "object") {
         return "statsHistory entries must include integer season and object stats";
       }
+    }
+  }
+
+  return null;
+}
+
+const ALLOWED_SYNC_ROSTER_TYPES = new Set(["active", "40Man", "depthChart", "fullSeason", "fullRoster"]);
+
+function validateMlbSyncBody(body) {
+  if (body === undefined || body === null) {
+    return null;
+  }
+
+  if (typeof body !== "object" || Array.isArray(body)) {
+    return "Request body must be an object";
+  }
+
+  if (body.rosterType !== undefined && !ALLOWED_SYNC_ROSTER_TYPES.has(String(body.rosterType))) {
+    return "rosterType must be one of: active, 40Man, depthChart, fullSeason";
+  }
+
+  for (const numericField of ["seasonsBack", "lookbackDays", "concurrency"]) {
+    if (body[numericField] !== undefined) {
+      const value = Number(body[numericField]);
+      if (!Number.isInteger(value) || value <= 0) {
+        return `${numericField} must be a positive integer`;
+      }
+    }
+  }
+
+  if (body.latestSeason !== undefined) {
+    const latestSeason = Number(body.latestSeason);
+    if (!Number.isInteger(latestSeason) || latestSeason < 1900 || latestSeason > 2100) {
+      return "latestSeason must be a valid year";
+    }
+  }
+
+  if (body.replaceCatalog !== undefined && typeof body.replaceCatalog !== "boolean") {
+    return "replaceCatalog must be a boolean";
+  }
+
+  for (const pathField of [
+    "lahmanBattingCsvPath",
+    "lahmanPitchingCsvPath",
+    "lahmanPeopleCsvPath",
+    "chadwickRegisterCsvPath",
+    "fangraphsDepthCsvPath",
+  ]) {
+    if (body[pathField] !== undefined && typeof body[pathField] !== "string") {
+      return `${pathField} must be a string path`;
     }
   }
 
@@ -597,6 +648,25 @@ async function valuateAllPlayers(req, res, next) {
   }
 }
 
+async function syncMlbCatalog(req, res, next) {
+  try {
+    const validationError = validateMlbSyncBody(req.body);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const result = await mlbCatalogSyncService.syncCatalogFromMlbApi(payload);
+
+    return res.json({
+      ok: true,
+      ...result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getPlayers,
   getPlayerById,
@@ -605,5 +675,7 @@ module.exports = {
   valuateSinglePlayer,
   valuateMultiplePlayers,
   valuateAllPlayers,
+  syncMlbCatalog,
   validateValuationBody,
+  validateMlbSyncBody,
 };
