@@ -12,7 +12,7 @@ const seedTeams = [
   { mlbTeamId: 116, name: "Detroit Tigers", abbreviation: "DET", league: "AL", division: "Central", city: "Detroit" },
   { mlbTeamId: 118, name: "Kansas City Royals", abbreviation: "KC", league: "AL", division: "Central", city: "Kansas City" },
   { mlbTeamId: 142, name: "Minnesota Twins", abbreviation: "MIN", league: "AL", division: "Central", city: "Minneapolis" },
-
+ 
   // AL West
   { mlbTeamId: 117, name: "Houston Astros", abbreviation: "HOU", league: "AL", division: "West", city: "Houston" },
   { mlbTeamId: 108, name: "Los Angeles Angels", abbreviation: "LAA", league: "AL", division: "West", city: "Anaheim" },
