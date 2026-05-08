@@ -34,6 +34,9 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <button className="auth-back-btn" onClick={() => navigate("/")}>
+          &larr; Back
+        </button>
         <div className="auth-brand">⚾ DraftKit API</div>
         <h2>Create Account</h2>
         <p className="auth-subtitle">Get your API key instantly — no credit card required.</p>

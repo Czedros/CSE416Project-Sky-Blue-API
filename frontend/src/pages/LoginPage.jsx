@@ -33,6 +33,9 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <button className="auth-back-btn" onClick={() => navigate("/")}>
+          &larr; Back
+        </button>
         <div className="auth-brand">⚾ DraftKit API</div>
         <h2>Sign In</h2>
         <p className="auth-subtitle">Access your developer dashboard and API key.</p>
