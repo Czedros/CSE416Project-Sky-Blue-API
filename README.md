@@ -11,6 +11,17 @@ Copy `.env.example` to `.env` and fill in:
 - `APP_CLIENT_KEY`
 - `JWT_SECRET`
 - `CORS_ORIGIN` (optional, default `http://localhost:5173`)
+- `SYNC_MLB_ON_STARTUP` (optional, `true`/`false`, default `false`)
+- `SYNC_MLB_ROSTER_TYPE` (optional, default `40Man`)
+- `SYNC_MLB_SEASONS_BACK` (optional, default `3`)
+- `SYNC_MLB_LOOKBACK_DAYS` (optional, default `30`)
+- `SYNC_MLB_CONCURRENCY` (optional, default `8`)
+- `SYNC_MLB_REPLACE_CATALOG` (optional, `true`/`false`, default `false`)
+- `LAHMAN_BATTING_CSV_PATH` (optional)
+- `LAHMAN_PITCHING_CSV_PATH` (optional)
+- `LAHMAN_PEOPLE_CSV_PATH` (optional)
+- `CHADWICK_REGISTER_CSV_PATH` (optional)
+- `FANGRAPHS_DEPTH_CSV_PATH` (optional)
 
 ## Run locally
 
@@ -59,6 +70,48 @@ Returns detailed info for a single player by MLB integer ID.
 ```bash
 curl -H "Authorization: Bearer $APP_CLIENT_KEY" http://localhost:3000/api/players/605141
 ```
+
+#### `POST /api/players/sync/mlb`
+
+Refreshes catalog data from MLB Stats API using official MLB integer IDs, including:
+
+- Team catalog (`/teams`)
+- Player pool from team roster (`active`, `40Man`, `depthChart`, or `fullSeason`)
+- Last N seasons of stats (default 3)
+- Recent transaction-based injury/status updates (default last 30 days)
+
+Optional request body:
+
+- `rosterType` (`active`, `40Man`, `depthChart`, `fullSeason`)
+- `seasonsBack` (positive integer)
+- `lookbackDays` (positive integer)
+- `concurrency` (positive integer)
+- `latestSeason` (year)
+- `replaceCatalog` (boolean, if true deletes players not in latest sync)
+- `lahmanBattingCsvPath` (optional file path)
+- `lahmanPitchingCsvPath` (optional file path)
+- `lahmanPeopleCsvPath` (optional file path)
+- `chadwickRegisterCsvPath` (optional file path)
+- `fangraphsDepthCsvPath` (optional file path)
+
+```bash
+curl -X POST -H "Authorization: Bearer $APP_CLIENT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rosterType": "40Man",
+    "seasonsBack": 3,
+    "lookbackDays": 30,
+    "replaceCatalog": false
+  }' \
+  http://localhost:3000/api/players/sync/mlb
+```
+
+Startup behavior:
+
+- Default: boot from seeded catalog (fast, offline-safe).
+- If `SYNC_MLB_ON_STARTUP=true`: boot seeds first, then immediately overlay with live MLB sync.
+- If Lahman paths + Chadwick path are configured: Lahman historical stats are overlaid onto MLB-synced players.
+- If FanGraphs depth CSV + Chadwick path are configured: FanGraphs depth rank overrides are applied.
 
 ### Player Valuation
 
@@ -185,13 +238,27 @@ MLB integer IDs are the single source of truth for both players and teams:
 
 | Data | Source | Update Frequency |
 |------|--------|------------------|
-| Player info | MLB Stats API | Static / on-demand |
-| Player stats | Lahman Database / seeded catalog | Historical (3-season capable) |
+| Player info | MLB Stats API | On-demand sync |
+| Player stats (historical baseline) | Lahman Database | Static historical dataset (best for stable multi-year baselines) |
+| Player stats (live fallback) | MLB Stats API + seeded fallback | On-demand / fallback when Lahman rows are unavailable |
 | Injury status | MLB Transactions | Dynamic |
-| Team info | MLB Stats API / Lahman | Static |
-| Depth charts | FanGraphs | Dynamic |
+| Team info | MLB Stats API / Lahman | On-demand sync + static cross-check |
+| Depth charts | FanGraphs export CSV (+ Chadwick ID map) | Dynamic manual refresh |
 | Transactions | MLB Transactions | Dynamic |
 | ID cross-reference | Chadwick Register | Static |
+
+### Lahman Usage (Recommended)
+
+- Keep MLBAM integer IDs (`playerId`, `mlbTeamId`) as canonical IDs in API responses.
+- Use Lahman for historical batting/pitching baselines (3+ seasons) and stable year-over-year analytics.
+- Use Chadwick Register to map Lahman IDs to MLB IDs when needed.
+- Keep MLB Stats API as the source for live roster movement, injuries, and current-team assignment.
+
+### FanGraphs Usage (Recommended)
+
+- Use FanGraphs as a depth/projection overlay source (for depth rank context).
+- Load FanGraphs via exported CSV and map IDs through Chadwick register.
+- Keep MLB Stats API as the authoritative live roster/injury feed.
 
 ## Product boundary
 
