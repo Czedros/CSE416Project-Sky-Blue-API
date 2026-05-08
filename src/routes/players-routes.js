@@ -4,8 +4,6 @@ const {
   getPlayerById,
   getPlayerValuationLegacy,
   createCustomPlayer,
-  createPlayer,
-  getPlayerValuation,
   valuateMultiplePlayers,
   valuateAllPlayers,
   syncMlbCatalog,
@@ -19,10 +17,6 @@ router.post("/sync/mlb", syncMlbCatalog);
 router.post("/value", valuateMultiplePlayers);
 router.post("/value/all", valuateAllPlayers);
 router.get("/:playerId/valuation", getPlayerValuationLegacy);
-router.post("/", createPlayer);
-router.post("/value", valuateMultiplePlayers);
-router.post("/value/all", valuateAllPlayers);
-router.get("/:playerId/valuation", getPlayerValuation);
 router.get("/:playerId", getPlayerById);
 
 module.exports = router;
