@@ -68,13 +68,21 @@ function mockPlayerFindOne(data) {
 }
 
 describe("system: DraftKit API", () => {
+  beforeEach(() => {
+    delete process.env.VERCEL;
+  });
+
   afterEach(() => {
     Player.find = originalFind;
     Player.findOne = originalFindOne;
     Player.create = originalCreate;
     Team.bulkWrite = originalTeamBulkWrite;
     User.findOne = originalUserFindOne;
-    process.env.VERCEL = originalVercel;
+    if (originalVercel === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = originalVercel;
+    }
     vi.restoreAllMocks();
   });
 

@@ -132,6 +132,8 @@ Startup behavior:
 - If Lahman/FanGraphs URLs are configured (or local CSV paths are configured): overlays are applied during sync.
 - URL-configured overlay files are downloaded to `EXTERNAL_DATA_CACHE_DIR` before each sync.
 - `LAHMAN_ZIP_PATH` or `LAHMAN_ZIP_URL` can point at the SABR comma-delimited Lahman zip; the API extracts `Batting.csv`, `Pitching.csv`, and `People.csv` automatically.
+- On Vercel, prefer committed CSV paths instead of `LAHMAN_ZIP_URL`. Downloading and extracting the full Lahman zip during the MLB sync can exceed serverless time/memory limits. The repo includes a compact current overlay at `data/lahman/current`.
+- Recommended Vercel Lahman settings: `LAHMAN_BATTING_CSV_PATH=data/lahman/current/Batting.csv`, `LAHMAN_PITCHING_CSV_PATH=data/lahman/current/Pitching.csv`, `LAHMAN_PEOPLE_CSV_PATH=data/lahman/current/People.csv`, with `LAHMAN_ZIP_PATH=` and `LAHMAN_ZIP_URL=` blank.
 - If no `CHADWICK_REGISTER_CSV_URL` or `CHADWICK_REGISTER_CSV_URLS` is provided, the API downloads and combines Chadwick's public `people-0.csv` through `people-f.csv` register files automatically.
 
 ### Player Valuation

@@ -184,6 +184,24 @@ describe("services: externalDataRefreshService", () => {
     expect(axiosSpy).not.toHaveBeenCalled();
   });
 
+  it("reports a configured local Lahman zip path that is not readable", async () => {
+    const tempDir = createTempDir();
+    const missingZipPath = path.join(tempDir, "missing-lahman.zip");
+
+    const result = await refreshExternalCsvSources({
+      cacheDir: path.join(tempDir, "cache"),
+      lahmanZipPath: missingZipPath,
+      chadwickRegisterCsvPath: createTempFile(tempDir, "chadwick.csv", "key_mlbam,key_bbref\n1,a\n"),
+    });
+
+    expect(result.refreshedSources).not.toContain("lahmanBattingCsvPath");
+    expect(result.failedSources).toContainEqual(expect.objectContaining({
+      source: "lahmanZipPath",
+      url: path.resolve(missingZipPath),
+      error: "Configured Lahman zip path is not readable",
+    }));
+  });
+
   it("combines split Chadwick register CSV URLs into one cache file", async () => {
     const tempDir = createTempDir();
     const responses = [

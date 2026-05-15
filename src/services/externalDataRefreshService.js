@@ -216,6 +216,21 @@ function loadLahmanZipBuffer(options) {
 }
 
 async function refreshLahmanZip(options) {
+  const localPath = normalizePath(options.lahmanZipPath);
+  const url = normalizeUrl(options.lahmanZipUrl);
+  if (localPath && !hasReadableFile(localPath) && !url) {
+    return {
+      refreshedSources: [],
+      failedSources: [
+        {
+          source: "lahmanZipPath",
+          url: path.resolve(localPath),
+          error: "Configured Lahman zip path is not readable",
+        },
+      ],
+    };
+  }
+
   const zipSource = loadLahmanZipBuffer(options);
   if (!zipSource) return { refreshedSources: [], failedSources: [] };
 
